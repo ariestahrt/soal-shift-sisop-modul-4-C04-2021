@@ -963,12 +963,277 @@ static int xmp_rename(const char *from, const char *to){
 	return 0;
 }
 
+static int xmp_unlink(const char *path){
+    put_systemlogs("WARNING", "UNLINK", path);
+
+    char path_fulldir[SIZE];
+    sprintf(path_fulldir, "%s%s", dirpath, path);
+    
+    char realpath[SIZE];
+
+	if(strcmp(path,"/") == 0){
+        sprintf(realpath,"%s",dirpath);
+    }else{
+        sprintf(realpath, "%s%s", dirpath, path);
+        if(strstr(path, "/AtoZ_")){
+            char path_arr[SIZE]; sprintf(path_arr, "%s", path);
+            char *after_atoz = strstr(path_arr, "/AtoZ_") + strlen("/AtoZ_");
+
+            if(strstr(after_atoz, "/")){
+                char *real_dir = getStrBetween(path, "/AtoZ_", "/");
+
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                char *after_fullatoz = strstr(path, real_dir) + strlen(real_dir);
+                char *dir_ext = get_filename_ext(after_fullatoz);
+
+                if(strlen(dir_ext) > 0){
+                    char path_to_decrypt[SIZE]; sprintf(path_to_decrypt, "%s", after_fullatoz);
+                    path_to_decrypt[strlen(path_to_decrypt) - strlen(dir_ext) -1] = 0;
+                    char *decrypted = aes_crypt(path_to_decrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s.%s", dirpath, before_atoz, "/", real_dir, decrypted, dir_ext);
+                }else{
+                    char *needDecrypt = strstr(path, real_dir) + strlen(real_dir);
+                    char *decrypted = aes_crypt(needDecrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s", dirpath, before_atoz, "/", real_dir, decrypted);
+                }
+            }else{
+                char *real_dir = after_atoz;
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                sprintf(realpath, "%s%s%s%s", dirpath, before_atoz, "/", real_dir);
+            }
+        }
+    }
+
+	unlink(realpath);
+	return 0;
+}
+
+static int xmp_rmdir(const char *path){
+    put_systemlogs("WARNING", "RMDIR", path);
+
+    char path_fulldir[SIZE];
+    sprintf(path_fulldir, "%s%s", dirpath, path);
+    
+    char realpath[SIZE];
+
+	if(strcmp(path,"/") == 0){
+        sprintf(realpath,"%s",dirpath);
+    }else{
+        sprintf(realpath, "%s%s", dirpath, path);
+        if(strstr(path, "/AtoZ_")){
+            char path_arr[SIZE]; sprintf(path_arr, "%s", path);
+            char *after_atoz = strstr(path_arr, "/AtoZ_") + strlen("/AtoZ_");
+
+            if(strstr(after_atoz, "/")){
+                char *real_dir = getStrBetween(path, "/AtoZ_", "/");
+
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                char *after_fullatoz = strstr(path, real_dir) + strlen(real_dir);
+                char *dir_ext = get_filename_ext(after_fullatoz);
+
+                if(strlen(dir_ext) > 0){
+                    char path_to_decrypt[SIZE]; sprintf(path_to_decrypt, "%s", after_fullatoz);
+                    path_to_decrypt[strlen(path_to_decrypt) - strlen(dir_ext) -1] = 0;
+                    char *decrypted = aes_crypt(path_to_decrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s.%s", dirpath, before_atoz, "/", real_dir, decrypted, dir_ext);
+                }else{
+                    char *needDecrypt = strstr(path, real_dir) + strlen(real_dir);
+                    char *decrypted = aes_crypt(needDecrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s", dirpath, before_atoz, "/", real_dir, decrypted);
+                }
+            }else{
+                char *real_dir = after_atoz;
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                sprintf(realpath, "%s%s%s%s", dirpath, before_atoz, "/", real_dir);
+            }
+        }
+    }
+
+    rmdir(realpath);
+	return 0;
+}
+
+static int xmp_write(const char *path, const char *buf, size_t size,
+		     off_t offset, struct fuse_file_info *fi){
+    put_systemlogs("INFO", "WRITE", path);
+
+    char path_fulldir[SIZE];
+    sprintf(path_fulldir, "%s%s", dirpath, path);
+    
+    char realpath[SIZE];
+
+	if(strcmp(path,"/") == 0){
+        sprintf(realpath,"%s",dirpath);
+    }else{
+        sprintf(realpath, "%s%s", dirpath, path);
+        if(strstr(path, "/AtoZ_")){
+            char path_arr[SIZE]; sprintf(path_arr, "%s", path);
+            char *after_atoz = strstr(path_arr, "/AtoZ_") + strlen("/AtoZ_");
+
+            if(strstr(after_atoz, "/")){
+                char *real_dir = getStrBetween(path, "/AtoZ_", "/");
+
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                char *after_fullatoz = strstr(path, real_dir) + strlen(real_dir);
+                char *dir_ext = get_filename_ext(after_fullatoz);
+
+                if(strlen(dir_ext) > 0){
+                    char path_to_decrypt[SIZE]; sprintf(path_to_decrypt, "%s", after_fullatoz);
+                    path_to_decrypt[strlen(path_to_decrypt) - strlen(dir_ext) -1] = 0;
+                    char *decrypted = aes_crypt(path_to_decrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s.%s", dirpath, before_atoz, "/", real_dir, decrypted, dir_ext);
+                }else{
+                    char *needDecrypt = strstr(path, real_dir) + strlen(real_dir);
+                    char *decrypted = aes_crypt(needDecrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s", dirpath, before_atoz, "/", real_dir, decrypted);
+                }
+            }else{
+                char *real_dir = after_atoz;
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                sprintf(realpath, "%s%s%s%s", dirpath, before_atoz, "/", real_dir);
+            }
+        }
+    }
+	int fd;
+	int res;
+
+	(void) fi;
+	fd = open(realpath, O_WRONLY);
+	if (fd == -1)
+		return -errno;
+
+	res = pwrite(fd, buf, size, offset);
+	if (res == -1)
+		res = -errno;
+
+	close(fd);
+	return res;
+}
+
+static int xmp_statfs(const char *path, struct statvfs *stbuf){
+    put_systemlogs("INFO", "STATFS", path);
+
+    char path_fulldir[SIZE];
+    sprintf(path_fulldir, "%s%s", dirpath, path);
+    
+    char realpath[SIZE];
+
+	if(strcmp(path,"/") == 0){
+        sprintf(realpath,"%s",dirpath);
+    }else{
+        sprintf(realpath, "%s%s", dirpath, path);
+        if(strstr(path, "/AtoZ_")){
+            char path_arr[SIZE]; sprintf(path_arr, "%s", path);
+            char *after_atoz = strstr(path_arr, "/AtoZ_") + strlen("/AtoZ_");
+
+            if(strstr(after_atoz, "/")){
+                char *real_dir = getStrBetween(path, "/AtoZ_", "/");
+
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                char *after_fullatoz = strstr(path, real_dir) + strlen(real_dir);
+                char *dir_ext = get_filename_ext(after_fullatoz);
+
+                if(strlen(dir_ext) > 0){
+                    char path_to_decrypt[SIZE]; sprintf(path_to_decrypt, "%s", after_fullatoz);
+                    path_to_decrypt[strlen(path_to_decrypt) - strlen(dir_ext) -1] = 0;
+                    char *decrypted = aes_crypt(path_to_decrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s.%s", dirpath, before_atoz, "/", real_dir, decrypted, dir_ext);
+                }else{
+                    char *needDecrypt = strstr(path, real_dir) + strlen(real_dir);
+                    char *decrypted = aes_crypt(needDecrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s", dirpath, before_atoz, "/", real_dir, decrypted);
+                }
+            }else{
+                char *real_dir = after_atoz;
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                sprintf(realpath, "%s%s%s%s", dirpath, before_atoz, "/", real_dir);
+            }
+        }
+    }
+
+	int res;
+
+	res = statvfs(realpath, stbuf);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+    put_systemlogs("INFO", "CREATE", path);
+
+    char path_fulldir[SIZE];
+    sprintf(path_fulldir, "%s%s", dirpath, path);
+    
+    char realpath[SIZE];
+
+	if(strcmp(path,"/") == 0){
+        sprintf(realpath,"%s",dirpath);
+    }else{
+        sprintf(realpath, "%s%s", dirpath, path);
+        if(strstr(path, "/AtoZ_")){
+            char path_arr[SIZE]; sprintf(path_arr, "%s", path);
+            char *after_atoz = strstr(path_arr, "/AtoZ_") + strlen("/AtoZ_");
+
+            if(strstr(after_atoz, "/")){
+                char *real_dir = getStrBetween(path, "/AtoZ_", "/");
+
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                char *after_fullatoz = strstr(path, real_dir) + strlen(real_dir);
+                char *dir_ext = get_filename_ext(after_fullatoz);
+
+                if(strlen(dir_ext) > 0){
+                    char path_to_decrypt[SIZE]; sprintf(path_to_decrypt, "%s", after_fullatoz);
+                    path_to_decrypt[strlen(path_to_decrypt) - strlen(dir_ext) -1] = 0;
+                    char *decrypted = aes_crypt(path_to_decrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s.%s", dirpath, before_atoz, "/", real_dir, path_to_decrypt, dir_ext);
+                }else{
+                    char *needDecrypt = strstr(path, real_dir) + strlen(real_dir);
+                    char *decrypted = aes_crypt(needDecrypt);
+
+                    sprintf(realpath, "%s%s%s%s%s", dirpath, before_atoz, "/", real_dir, needDecrypt);
+                }
+            }else{
+                char *real_dir = after_atoz;
+                char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
+                sprintf(realpath, "%s%s%s%s", dirpath, before_atoz, "/", real_dir);
+            }
+        }
+    }
+
+    (void) fi;
+
+    int res;
+    res = creat(realpath, mode);
+    if(res == -1)
+	return -errno;
+
+    close(res);
+
+    return 0;
+}
+
 static struct fuse_operations xmp_oper = {
     .getattr    = xmp_getattr,
     .readdir    = xmp_readdir,
     .read       = xmp_read,
     .mkdir      = xmp_mkdir,
     .rename	    = xmp_rename,
+    .unlink		= xmp_unlink,
+    .rmdir		= xmp_rmdir,
+    .statfs		= xmp_statfs,
+    .write		= xmp_write,
+    .create     = xmp_create,
 };
 
 int  main(int  argc, char *argv[]){
