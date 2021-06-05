@@ -108,6 +108,14 @@ void rx_remove(char *dir){
 
 // === END OF RX
 
+struct s_create {
+    int new;    
+    char full_dir[SIZE];
+    char path[SIZE];
+};
+
+struct s_create status_create;
+
 char *strrev(char *str){
 	  char *p1, *p2;
 
@@ -486,6 +494,15 @@ void put_systemlogs(char* level, char *command, char *desc){
 
 static int xmp_getattr(const char *path, struct stat *stbuf){
     put_systemlogs("INFO", "GETATTR", path);
+
+    // Langsung takeofer apabila habis ngecreate
+    // if(status_create.new<3){
+    //     status_create.new++;
+    //     put_systemlogs("INFO", "TAKEOFFER_GETATTR", status_create.full_dir);
+    //     lstat(status_create.full_dir, stbuf);
+    //     return 0;
+    // }
+
     if(strstr(path, "/.") == NULL){
         sprintf(log_msg, "\t[~] Get Attribute : %s", path); logs();
     }else{
@@ -1059,7 +1076,14 @@ static int xmp_rmdir(const char *path){
 
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi){
+
     put_systemlogs("INFO", "WRITE", path);
+    // Langsung takeofer apabila habis ngecreate
+    // if(status_create.new<3){
+    //     put_systemlogs("INFO", "TAKEOFFER_WRITE", status_create.path);
+    //     path = status_create.path;
+    // }
+
 
     char path_fulldir[SIZE];
     sprintf(path_fulldir, "%s%s", dirpath, path);
@@ -1170,10 +1194,12 @@ static int xmp_statfs(const char *path, struct statvfs *stbuf){
 
 static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
     put_systemlogs("INFO", "CREATE", path);
+    status_create.new = 0;
 
     char path_fulldir[SIZE];
     sprintf(path_fulldir, "%s%s", dirpath, path);
-    
+    sprintf(status_create.full_dir, "%s", path_fulldir);
+
     char realpath[SIZE];
 
 	if(strcmp(path,"/") == 0){
@@ -1197,11 +1223,14 @@ static int xmp_create(const char* path, mode_t mode, struct fuse_file_info* fi) 
                     char *decrypted = aes_crypt(path_to_decrypt);
 
                     sprintf(realpath, "%s%s%s%s%s.%s", dirpath, before_atoz, "/", real_dir, path_to_decrypt, dir_ext);
+
+                    sprintf(status_create.full_dir, "%s", realpath);
+                    sprintf(status_create.path, "%s%s%s%s.%s", before_atoz, "/AtoZ_", real_dir, path_to_decrypt, dir_ext);
                 }else{
                     char *needDecrypt = strstr(path, real_dir) + strlen(real_dir);
                     char *decrypted = aes_crypt(needDecrypt);
 
-                    sprintf(realpath, "%s%s%s%s%s", dirpath, before_atoz, "/", real_dir, needDecrypt);
+                    sprintf(realpath, "%s%s%s%s%s", dirpath, before_atoz, "/", real_dir, decrypted);
                 }
             }else{
                 char *real_dir = after_atoz;
@@ -1237,6 +1266,8 @@ static struct fuse_operations xmp_oper = {
 };
 
 int  main(int  argc, char *argv[]){
+    status_create.new = 999;
+
     umask(0);
     return fuse_main(argc, argv, &xmp_oper, NULL);
 }
