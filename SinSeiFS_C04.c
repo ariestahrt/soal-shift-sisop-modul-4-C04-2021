@@ -108,6 +108,43 @@ void rx_remove(char *dir){
 
 // === END OF RX
 
+// === A_IS_A
+
+char *a_is_a_directory[ARR_SIZE];
+int a_is_a_last_idx = 0;
+
+void a_is_a_insert(char* dir){
+    a_is_a_directory[a_is_a_last_idx] = malloc(strlen(dir) + 1);
+    strcpy(a_is_a_directory[a_is_a_last_idx], dir);
+    a_is_a_last_idx++;
+}
+
+bool a_is_a_contains(char *dir){
+    for(int i=0; i<a_is_a_last_idx; i++){
+        if(!strcmp(a_is_a_directory[i], dir)) return true;
+    }
+    return false;
+}
+
+int a_is_a_insubstr(char *dir){
+    for(int i=0; i<a_is_a_last_idx; i++){
+        if(strstr(dir, a_is_a_directory[i])){
+            return i;
+        }
+    }
+    return -1;
+}
+
+void a_is_a_remove(char *dir){
+    for(int i=0; i<a_is_a_last_idx; i++){
+        if(!strcmp(a_is_a_directory[i], dir)){
+            strcpy(a_is_a_directory[i], "xxx..............xxx");
+        }
+    }
+}
+
+// === END OF A_IS_A
+
 struct s_create {
     int new;    
     char full_dir[SIZE];
@@ -329,7 +366,7 @@ void encryptRecursively(char *path, int CHIPER){
             char to_rename[SIZE]; sprintf(to_rename, "%s/%s", path, encrypted);
 
             rename(from_rename, to_rename);
-            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+            sprintf(log_msg, "\t[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
 
             char next_path[SIZE];
             sprintf(next_path, "%s/%s", path, encrypted);
@@ -361,7 +398,7 @@ void encryptRecursively(char *path, int CHIPER){
             }
 
             rename(from_rename, to_rename);
-            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+            sprintf(log_msg, "\t[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
         }
     }
     closedir(dir);
@@ -392,11 +429,11 @@ void decryptRecursively(char *path, int CHIPER){
             char to_rename[SIZE]; sprintf(to_rename, "%s/%s", path, decrypted);
 
             rename(from_rename, to_rename);
-            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+            sprintf(log_msg, "\t[~] decrypt, rename : %s to %s", from_rename, to_rename); logs();
 
             char next_path[SIZE];
             sprintf(next_path, "%s/%s", path, decrypted);
-            encryptRecursively(next_path, CHIPER);
+            decryptRecursively(next_path, CHIPER);
         } else {
             // This is file
             char from_rename[SIZE]; sprintf(from_rename, "%s/%s", path, entry->d_name);
@@ -424,7 +461,7 @@ void decryptRecursively(char *path, int CHIPER){
             }
 
             rename(from_rename, to_rename);
-            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+            sprintf(log_msg, "\t[~] decrypt, rename : %s to %s", from_rename, to_rename); logs();
         }
     }
     closedir(dir);
@@ -770,6 +807,10 @@ static int xmp_mkdir(const char *path, mode_t mode){
     char rx_dir[SIZE]; sprintf(rx_dir, "%s", dirname);
     rx_dir[strlen("RX_")] = 0;
 
+    // aisa_dir
+    char aisa_dir[SIZE]; sprintf(aisa_dir, "%s", dirname);
+    aisa_dir[strlen("A_is_a_")] = 0;
+
     // Check AtoZ    
     if(!strcmp(atoz_dir, "AtoZ_")){
         // Get after atoz folder
@@ -803,6 +844,9 @@ static int xmp_mkdir(const char *path, mode_t mode){
         rx_insert(realpath, ROT13);
         sprintf(log_msg, "rx dibuat dari mkdir : %s", realpath);
         put_logs(log_msg);
+    }else if(!strcmp(aisa_dir, "A_is_a_")){
+        sprintf(realpath, "%s%s", dirpath, path);
+        a_is_a_insert(realpath);
     }else{
         removeSubstr(path, "AtoZ_");
         char full_dir[SIZE]; sprintf(full_dir, "%s%s", dirpath, path);
@@ -952,6 +996,8 @@ static int xmp_rename(const char *from, const char *to){
 
         encryptRecursively(to_realpath, VIGENERE);
         return 0;
+    }else if(strstr(to, "/A_is_a_")){
+        a_is_a_insert(to_realpath);
     }
 
     sprintf(log_msg, "[~] Fixed Rename : %s to %s", from_realpath, to_realpath); logs();
