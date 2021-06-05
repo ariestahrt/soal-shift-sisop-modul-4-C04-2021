@@ -14,13 +14,20 @@
 #define SIZE 1024
 #define ARR_SIZE 100
 
+#define ROT13 1
+#define VIGENERE 2
+
 time_t my_time;
 struct tm * timeinfo;
 
 static const char *dirpath = "/home/ariestaheart/Downloads";
 static const char *fs_dir = "/home/ariestaheart/Modul4/Demo";
+static const char *logpath = "/home/ariestaheart/SinSeiFS.log";
+
 char log_msg[SIZE*2];
 char current_readdir[SIZE];
+
+// === ATOZ
 
 char *atoz_directory[ARR_SIZE];
 int atoz_last_idx = 0;
@@ -55,6 +62,51 @@ void atoz_remove(char *dir){
         }
     }
 }
+
+// === END OF ATOZ
+
+// === RX
+
+struct rx {
+    char DIR[SIZE];    
+    int CHIPER;    
+};
+
+struct rx rx_directory[ARR_SIZE];
+int rx_last_idx = 0;
+
+void rx_insert(char* dir, int chiper){
+    sprintf(rx_directory[rx_last_idx].DIR, "%s", dir);
+    rx_directory[rx_last_idx].CHIPER = chiper;
+    rx_last_idx++;
+}
+
+bool rx_contains(char *dir){
+    for(int i=0; i<rx_last_idx; i++){
+        if(!strcmp(rx_directory[i].DIR, dir)) return true;
+    }
+    return false;
+}
+
+int rx_insubstr(char *dir){
+    int to_return = -1;
+    for(int i=0; i<rx_last_idx; i++){
+        if(strstr(dir, rx_directory[i].DIR)){
+            to_return = i;
+        }
+    }
+    return to_return;
+}
+
+void rx_remove(char *dir){
+    for(int i=0; i<rx_last_idx; i++){
+        if(!strcmp(rx_directory[i].DIR, dir)){
+            strcpy(rx_directory[i].DIR, "xxx..............xxx");
+        }
+    }
+}
+
+// === END OF RX
 
 char *strrev(char *str){
 	  char *p1, *p2;
@@ -137,6 +189,12 @@ bool isAtoz(char *str){
     return false;
 }
 
+const char *get_filename_ext(const char *filename) {
+    const char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
+}
+
 char *aes_crypt(char *str){
     for(int i=0; i<strlen(str); i++){
         if(str[i] >= 'A' && str[i] <= 'Z'){
@@ -147,6 +205,221 @@ char *aes_crypt(char *str){
     }
 
     return str;
+}
+
+char *chaesarEncrypt(char* str, int shift){
+    int len = strlen(str);
+    char *ret = malloc((len+1) * sizeof(char));
+
+    for(int i=0; i<len; i++){
+        if(str[i] >= 97 && str[i] <= 122){
+            int asciinum = str[i] - 'a';
+            asciinum = 97 + (asciinum+shift)%26;
+            ret[i] = asciinum;
+        }else if (str[i] >= 65 && str[i] <= 90){
+            int asciinum = str[i] - 'A';
+            asciinum = 65 + (asciinum+shift)%26;
+            ret[i] = asciinum;
+        }else{
+            ret[i] = str[i];
+        }
+    }
+    ret[len] = '\0';
+
+    return ret;
+}
+
+char *vignereEncrypt(char *str, char *key) {    
+    char *str_copy = malloc((strlen(str)+1) * sizeof(char));
+    sprintf(str_copy, "%s", str);
+    char temp[SIZE]; sprintf(temp, "%s", str);
+
+    int i = 0, curKey = 0;
+    for(i = 0; i < strlen(str_copy); i++) {
+        if(str_copy[i] >= 'a' && str_copy[i] <= 'z') {
+            str_copy[i] = str_copy[i] - 'a' + 'A';
+        }
+    }
+
+    for(int i = 0; i < strlen(str_copy); i++) {
+        if(curKey == strlen(key)) curKey = 0;
+
+        if(str_copy[i] >= 'A' && str_copy[i] <= 'Z')
+            str_copy[i] = ((str_copy[i] + key[curKey]) % 26);
+            
+        if(temp[i] >= 'a' && temp[i] <= 'z')
+            str_copy[i] += 'a';
+        else if(temp[i] >= 'A' && temp[i] <= 'Z')
+            str_copy[i] += 'A';
+        else
+            curKey--;
+        
+        curKey++;
+    }
+
+    str_copy[strlen(str)] = 0;
+    return str_copy;
+}
+
+char* vignereDecrypt(char *str, char *key) {    
+    char *str_copy = malloc((strlen(str)+1) * sizeof(char));
+    sprintf(str_copy, "%s", str);
+    char temp[SIZE]; sprintf(temp, "%s", str);
+
+    int i = 0, curKey = 0;
+    for(i = 0; i < strlen(str_copy); i++) {
+        if(str_copy[i] >= 'a' && str_copy[i] <= 'z') {
+            str_copy[i] = str_copy[i] - 'a' + 'A';
+        }
+    }
+
+    for(int i = 0; i < strlen(str_copy); i++) {
+        if(curKey == strlen(key)) curKey = 0;
+
+        if(str_copy[i] >= 'A' && str_copy[i] <= 'Z') {
+            str_copy[i] = str_copy[i] - key[curKey];
+
+            if(str_copy[i] < 0)
+                str_copy[i] += 26;
+        }
+
+        if(temp[i] >= 'a' && temp[i] <= 'z')
+            str_copy[i] += 'a';
+        else if(temp[i] >= 'A' && temp[i] <= 'Z')
+            str_copy[i] += 'A';
+        else
+            curKey--;
+        
+        curKey++;
+    }
+
+    str_copy[strlen(str)] = 0;
+    return str_copy;
+}
+
+void encryptRecursively(char *path, int CHIPER){
+    sprintf(log_msg, "[~] encryptRecursively path : %s", path); logs();
+    DIR *dir;
+    struct dirent *entry;
+
+    if (!(dir = opendir(path)))
+        return;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+            char from_rename[SIZE]; sprintf(from_rename, "%s/%s", path, entry->d_name);
+            
+            char *encrypted;
+            if(CHIPER == ROT13){
+                encrypted = chaesarEncrypt(entry->d_name, 13);
+            }else if(CHIPER == VIGENERE){
+                encrypted = vignereEncrypt(entry->d_name, "SISOP");
+            }
+
+            char to_rename[SIZE]; sprintf(to_rename, "%s/%s", path, encrypted);
+
+            rename(from_rename, to_rename);
+            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+
+            char next_path[SIZE];
+            sprintf(next_path, "%s/%s", path, encrypted);
+            encryptRecursively(next_path, CHIPER);
+        } else {
+            // This is file
+            char from_rename[SIZE]; sprintf(from_rename, "%s/%s", path, entry->d_name);
+            char to_rename[SIZE];
+            char *encrypted;
+
+            char *dir_ext = get_filename_ext(entry->d_name);
+            if(strlen(dir_ext) > 0){
+                char to_decrypt[SIZE]; sprintf(to_decrypt, "%s", entry->d_name);
+                to_decrypt[strlen(to_decrypt) - strlen(dir_ext) -1] = 0;
+
+                if(CHIPER == ROT13){
+                    encrypted = chaesarEncrypt(to_decrypt, 13);
+                }else if(CHIPER == VIGENERE){
+                    encrypted = vignereEncrypt(to_decrypt, "SISOP");
+                }
+                sprintf(to_rename, "%s/%s.%s", path, encrypted, dir_ext);
+            }else{
+                if(CHIPER == ROT13){
+                    encrypted = chaesarEncrypt(entry->d_name, 13);
+                }else if(CHIPER == VIGENERE){
+                    encrypted = vignereEncrypt(entry->d_name, "SISOP");
+                }
+                sprintf(to_rename, "%s/%s", path, encrypted);
+            }
+
+            rename(from_rename, to_rename);
+            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+        }
+    }
+    closedir(dir);
+}
+
+
+void decryptRecursively(char *path, int CHIPER){
+    sprintf(log_msg, "[~] decryptRecursively path : %s", path); logs();
+    DIR *dir;
+    struct dirent *entry;
+
+    if (!(dir = opendir(path)))
+        return;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+            char from_rename[SIZE]; sprintf(from_rename, "%s/%s", path, entry->d_name);
+            
+            char *decrypted;
+            if(CHIPER == ROT13){
+                decrypted = chaesarEncrypt(entry->d_name, 13);
+            }else if(CHIPER == VIGENERE){
+                decrypted = vignereDecrypt(entry->d_name, "SISOP");
+            }
+
+            char to_rename[SIZE]; sprintf(to_rename, "%s/%s", path, decrypted);
+
+            rename(from_rename, to_rename);
+            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+
+            char next_path[SIZE];
+            sprintf(next_path, "%s/%s", path, decrypted);
+            encryptRecursively(next_path, CHIPER);
+        } else {
+            // This is file
+            char from_rename[SIZE]; sprintf(from_rename, "%s/%s", path, entry->d_name);
+            char to_rename[SIZE];
+            char *decrypted;
+
+            char *dir_ext = get_filename_ext(entry->d_name);
+            if(strlen(dir_ext) > 0){
+                char to_decrypt[SIZE]; sprintf(to_decrypt, "%s", entry->d_name);
+                to_decrypt[strlen(to_decrypt) - strlen(dir_ext) -1] = 0;
+
+                if(CHIPER == ROT13){
+                    decrypted = chaesarEncrypt(to_decrypt, 13);
+                }else if(CHIPER == VIGENERE){
+                    decrypted = vignereDecrypt(to_decrypt, "SISOP");
+                }
+                sprintf(to_rename, "%s/%s.%s", path, decrypted, dir_ext);
+            }else{
+                if(CHIPER == ROT13){
+                    decrypted = chaesarEncrypt(entry->d_name, 13);
+                }else if(CHIPER == VIGENERE){
+                    decrypted = vignereEncrypt(entry->d_name, "SISOP");
+                }
+                sprintf(to_rename, "%s/%s", path, decrypted);
+            }
+
+            rename(from_rename, to_rename);
+            sprintf(log_msg, "[~] encrypt, rename : %s to %s", from_rename, to_rename); logs();
+        }
+    }
+    closedir(dir);
 }
 
 char *getStrBetween(char *str, char *PATTERN1, char *PATTERN2){
@@ -180,13 +453,39 @@ void put_logs(char *message){
     fclose(fptr_logs);
 }
 
-const char *get_filename_ext(const char *filename) {
-    const char *dot = strrchr(filename, '.');
-    if(!dot || dot == filename) return "";
-    return dot + 1;
+void put_systemlogs(char* level, char *command, char *desc){
+    time (&my_time);
+	timeinfo = localtime (&my_time);
+
+	char day[10], month[10], year[10], hour[10], minute[10], second[10];
+
+	sprintf(day, "%d", timeinfo->tm_mday);
+	if(timeinfo->tm_mday < 10) sprintf(day, "0%d", timeinfo->tm_mday);
+
+	sprintf(month, "%d", timeinfo->tm_mon+1);
+	if(timeinfo->tm_mon+1 < 10) sprintf(month, "0%d", timeinfo->tm_mon+1);
+
+	sprintf(year, "%d", timeinfo->tm_year+1900);
+
+	sprintf(hour, "%d", timeinfo->tm_hour);
+	if(timeinfo->tm_hour < 10) sprintf(hour, "0%d", timeinfo->tm_hour);
+
+	sprintf(minute, "%d", timeinfo->tm_min);
+	if(timeinfo->tm_min < 10) sprintf(minute, "0%d", timeinfo->tm_min);
+
+	sprintf(second, "%d", timeinfo->tm_sec);
+	if(timeinfo->tm_sec < 10) sprintf(second, "0%d", timeinfo->tm_sec);
+
+    char content[SIZE];
+    sprintf(content, "%s::%s%s%s-%s:%s:%s:%s::%s", level, day, month, year, hour, minute, second, command, desc);
+
+    FILE* fptr_logs = fopen(logpath, "a");
+    fprintf(fptr_logs, "%s\r\n", content);
+    fclose(fptr_logs);
 }
 
 static int xmp_getattr(const char *path, struct stat *stbuf){
+    put_systemlogs("INFO", "GETATTR", path);
     if(strstr(path, "/.") == NULL){
         sprintf(log_msg, "\t[~] Get Attribute : %s", path); logs();
     }else{
@@ -236,8 +535,9 @@ static int xmp_getattr(const char *path, struct stat *stbuf){
 
     // Biasanya habis buat file baru dia request get attribute ke dir yang keencrypt
     // Tapi folder yang diminta folder direktori barunya itu, maka
-    DIR* dir_check = opendir(realpath);
-    if(!dir_check){
+    // DIR* dir_check = opendir(realpath);
+    
+    if(access( realpath, F_OK ) != 0){
         sprintf(log_msg, "\t\t[~] dircheck not exist : %s", realpath); logs();
 
         // Get directory created
@@ -263,6 +563,7 @@ static int xmp_getattr(const char *path, struct stat *stbuf){
 }
 
 static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi){
+    put_systemlogs("INFO", "READDIR", path);
     sprintf(log_msg, "[~] Dir readed : %s", path); logs();
     
     char path_fulldir[SIZE];
@@ -371,6 +672,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_
 }
 
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
+    put_systemlogs("INFO", "READ", path);
     sprintf(log_msg, "[~] Readfile : %s", path); logs();
 
     char path_fulldir[SIZE];
@@ -412,55 +714,6 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset, stru
                 char *before_atoz = getStrBetween(path_fulldir, dirpath, "/AtoZ_");
                 sprintf(realpath, "%s%s%s%s", dirpath, before_atoz, "/", real_dir);
             }
-
-            // char *after_atoz = getStrBetween(path, "/AtoZ_", "/");
-            // if(after_atoz != NULL){
-            //     char full_atozfolder[SIZE];
-            //     sprintf(full_atozfolder, "/AtoZ_%s", after_atoz);
-            //     sprintf(log_msg, "\t\t[~] Fullatoz : %s", full_atozfolder); logs();
-            //     sprintf(log_msg, "\t\t[~] Fullatoz len : %ld", strlen(full_atozfolder)); logs();
-
-            //     // Get after atoz folder
-            //     char path_arr[SIZE]; sprintf(path_arr, "%s", path);
-            //     char *after_fullatoz = strstr(path_arr, full_atozfolder)  + strlen(full_atozfolder);
-            //     sprintf(log_msg, "\t\t[~] After Fullatoz : %s", after_fullatoz); logs();
-
-            //     // Lalu dapatkan ekstensi dari direktory yang diproses
-            //     char *dir_ext = get_filename_ext(after_fullatoz);
-            //     // printf("EXT :: %s\n", dir_ext);
-            //     sprintf(log_msg, "\t\t[~] dir_ext : %s", dir_ext); logs();
-
-            //     char decrypted_name[SIZE*2];
-            //     if(strlen(dir_ext) > 0){
-            //         // punya ekstensi, maka enkripsi sebelum ekstensi
-            //         char path_to_decrypt[SIZE*2]; sprintf(path_to_decrypt, "%s", after_fullatoz);
-            //         path_to_decrypt[strlen(path_to_decrypt) - strlen(dir_ext) -1] = 0;
-            //         sprintf(log_msg, "\t\t[~] To decrypt : %s", path_to_decrypt); logs();
-            //         sprintf(decrypted_name, "%s.%s", aes_crypt(path_to_decrypt), dir_ext);
-            //         sprintf(log_msg, "\t\t[~] Decrypted : %s", decrypted_name); logs();
-            //     }else{
-            //         // tidak punya ekstensi
-            //         char path_to_decrypt[SIZE*2]; sprintf(path_to_decrypt, "%s", after_fullatoz);
-            //         sprintf(log_msg, "\t\t[~] To decrypt : %s", path_to_decrypt); logs();
-            //         sprintf(decrypted_name, "%s", aes_crypt(path_to_decrypt));
-            //         sprintf(log_msg, "\t\t[~] Decrypted : %s", decrypted_name); logs();
-            //     }
-                
-            //     // Get fullatoz tanpa "/"
-            //     char full_atozfolder_noslash[SIZE];
-            //     for(int i=1; i<strlen(full_atozfolder); i++){
-            //         full_atozfolder_noslash[i-1] = full_atozfolder[i];
-            //     }
-            //     full_atozfolder_noslash[strlen(full_atozfolder)-1] = 0;
-            //     sprintf(log_msg, "\t\t[~] full_atozfolder_noslash : %s", full_atozfolder_noslash); logs();
-
-            //     // Dapatkan sebelum Atoz
-            //     char path_arr2[SIZE]; sprintf(path_arr2, "%s", path);
-            //     char *end_str;
-            //     char *before_atoz = strtok_r(path_arr2, full_atozfolder_noslash, &end_str);
-
-            //     sprintf(realpath, "%s%s%s%s", dirpath, before_atoz, full_atozfolder_noslash, decrypted_name);
-            // }
         }
     }
 
@@ -481,6 +734,8 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset, stru
 Jika sebuah direktori dibuat dengan awalan “AtoZ_”, maka direktori tersebut akan menjadi direktori ter-encode
 */
 static int xmp_mkdir(const char *path, mode_t mode){
+    put_systemlogs("INFO", "MKDIR", path);
+
     sprintf(log_msg, "[~] Makedir : %s", path); logs();
     char realpath[SIZE];
     
@@ -490,12 +745,16 @@ static int xmp_mkdir(const char *path, mode_t mode){
     char *dirname = strrev(strtok_r(strrev(path_copy), "/", &end_str));
     sprintf(log_msg, "[~] dirname : %s", dirname); logs();
 
-    char dirname_arr[SIZE]; sprintf(dirname_arr, "%s", dirname);
-    // Check ATOZ
-    dirname_arr[strlen("AtoZ_")] = 0;
-    sprintf(log_msg, "[~] dirname_arr : %s", dirname_arr); logs();
-    
-    if(!strcmp(dirname_arr, "AtoZ_")){
+    // Atoz_DIR
+    char atoz_dir[SIZE]; sprintf(atoz_dir, "%s", dirname);
+    atoz_dir[strlen("AtoZ_")] = 0;
+
+    // Atoz_DIR
+    char rx_dir[SIZE]; sprintf(rx_dir, "%s", dirname);
+    rx_dir[strlen("RX_")] = 0;
+
+    // Check AtoZ    
+    if(!strcmp(atoz_dir, "AtoZ_")){
         // Get after atoz folder
         char path_arr[SIZE]; sprintf(path_arr, "%s", path);
         char *after_atoz = strstr(path_arr, "/AtoZ_") + strlen("/AtoZ_");
@@ -505,7 +764,6 @@ static int xmp_mkdir(const char *path, mode_t mode){
         sprintf(full_atozfolder, "/AtoZ_%s", after_atoz);
         sprintf(log_msg, "\t\t[~] Fullatoz : %s", full_atozfolder); logs();
         sprintf(log_msg, "\t\t[~] Fullatoz len : %ld", strlen(full_atozfolder)); logs();
-
 
         // Get fullatoz tanpa "/"
         char full_atozfolder_noslash[SIZE];
@@ -521,6 +779,13 @@ static int xmp_mkdir(const char *path, mode_t mode){
         char *before_atoz = strtok_r(path_arr2, full_atozfolder_noslash, &end_str);
         sprintf(realpath, "%s%s%s", dirpath, before_atoz, after_atoz);
         atoz_insert(realpath);
+        sprintf(log_msg, "%s --> %s%s", realpath, dirpath, path);
+        put_logs(log_msg);
+    }else if(!strcmp(rx_dir, "RX_")){
+        sprintf(realpath, "%s%s", dirpath, path);
+        rx_insert(realpath, ROT13);
+        sprintf(log_msg, "rx dibuat dari mkdir : %s", realpath);
+        put_logs(log_msg);
     }else{
         removeSubstr(path, "AtoZ_");
         char full_dir[SIZE]; sprintf(full_dir, "%s%s", dirpath, path);
@@ -541,11 +806,26 @@ static int xmp_mkdir(const char *path, mode_t mode){
             sprintf(realpath, "%s%s", dirpath, path);
         }
     }
+
+    // Check apakah dir yang dibuat didalam folder RX
+    char full_dir[SIZE]; sprintf(full_dir, "%s%s", dirpath, path);
+    if(rx_insubstr(full_dir) >= 0 && !!strcmp(rx_dir, "RX_")){
+        // Lalu encrypt direktory yang akan dibuat
+        int THIS_CHYPER = rx_directory[rx_insubstr(full_dir)].CHIPER;
+        char *encrypted;
+        if(THIS_CHYPER == ROT13){
+            encrypted = chaesarEncrypt(dirname, 13);
+        }else if(THIS_CHYPER == VIGENERE){
+            encrypted = vignereEncrypt(dirname, "SISOP");
+        }
+
+        char *before_dirname = getStrBetween(full_dir, dirpath, dirname);
+        sprintf(realpath, "%s%s%s", dirpath, before_dirname, encrypted);
+    }
     
     sprintf(log_msg, "\t\t[~] Final makedir : %s", realpath); logs();
     int res = mkdir(realpath, mode);
 	if (res == -1) return -errno;
-
 	return 0;
 }
 
@@ -553,6 +833,9 @@ static int xmp_mkdir(const char *path, mode_t mode){
 Jika sebuah direktori di-rename dengan awalan “AtoZ_”, maka direktori tersebut akan menjadi direktori ter-encode.
 */
 static int xmp_rename(const char *from, const char *to){
+    char temp_log[SIZE]; sprintf(temp_log, "%s::%s", from, to);
+    put_systemlogs("INFO", "RENAME", temp_log);
+
     sprintf(log_msg, "[~] Rename : %s to %s", from, to); logs();
 
     char from_copy[SIZE]; sprintf(from_copy, "%s", from);
@@ -637,17 +920,45 @@ static int xmp_rename(const char *from, const char *to){
         }else{
             sprintf(to_logs, "%s%s%s%s", dirpath, before_atoz, "/", real_dir);
         }
+    }else if(strstr(to, "/RX_")){
+        int last_rx = rx_insubstr(to_realpath);
+        rx_insert(to_realpath, VIGENERE);
+        sprintf(log_msg, "rx dibuat dari rename : %s", to_realpath);
+        put_logs(log_msg);
+
+        // Lalu secara rekursif ganti semua isi foldernya
+        rename(from_realpath, to_realpath);
+
+        if(last_rx >= 0){
+            decryptRecursively(to_realpath, rx_directory[last_rx].CHIPER);
+        }
+
+        encryptRecursively(to_realpath, VIGENERE);
+        return 0;
     }
 
     sprintf(log_msg, "[~] Fixed Rename : %s to %s", from_realpath, to_realpath); logs();
+    rename(from_realpath, to_realpath);
+
+    // Check apakah dia diganti dari /RX_ ke dir normal
+    char rx_from[SIZE]; sprintf(rx_from, "%s", dir_from);
+    rx_from[strlen("RX_")] = 0;
+
+    char rx_to[SIZE]; sprintf(rx_to, "%s", dir_to);
+    rx_to[strlen("RX_")] = 0;
+
+    if(!strcmp(rx_from, "RX_") && !!strcmp(rx_to, "RX_")){
+        int last_rx = rx_insubstr(from_realpath);
+        if(last_rx >= 0){
+            decryptRecursively(to_realpath, rx_directory[last_rx].CHIPER);
+            strcpy(rx_directory[last_rx].DIR, "xxx..............xxx");
+        }
+    }
 
     if(from_atoz || to_atoz){
         sprintf(log_msg, "%s --> %s", from_logs, to_logs);
         put_logs(log_msg);
     }
-
-	int res = rename(from_realpath, to_realpath);
-	if (res == -1) return -errno;
 
 	return 0;
 }
