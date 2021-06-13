@@ -4,6 +4,8 @@
 - Ahmad Lamaul Farid 05111940000134
 
 ## Deskripsi Soal
+Link soal [Soal Shift 4](https://docs.google.com/document/d/1KlAG2thAMm42so8BZMylw216EETVGu_DAM5PfwJzl5U/edit)
+
 Pada soal modul 4 ini kita diminta untuk membuat file system dengan ketentuan masing-masing soal sebagai berikut
 
 ## Soal 1
@@ -302,3 +304,304 @@ Metode encode pada suatu direktori juga berlaku terhadap direktori yang ada di d
 Untuk poin ini terdapat pada fungsi getattr pada poin nomor 1.
 
 Sehingga implementasi lengkap dapat dilihat pada file [SinSeiFS_C04.c](https://github.com/ariestahrt/soal-shift-sisop-modul-4-C04-2021/blob/master/SinSeiFS_C04.c)
+
+## Soal 2
+Pada soal no 2, diminta untuk membuat enkripsi tambahan dengan rincian sebagai berikut :
+* Direktori yang dibuat dengan awalan "RX_[Nama]", akan menjadi terencode beserta isinya dengan tambahan algoritma ROT13, sehingga menjadi (Atbash + ROT13)
+* Direktori yang direname dengan awalan "RX_[Nama]", akan menjadi terencode beserta isinya dengan tambahan Vignere Cipher dengan key "SISOP" (Case-sensitive, Atbash + Vignere)
+* Direktori terencode yang direname dengan menghilangkan "RX_"nya, akan terdecode berdasar nama aslinya
+* Setiap pembuatan direktori terencode (mkdir atau rename) otomatis tercatat pada catatan log beserta methodnya
+* Direktori asli akan dipecah menjadi file-file kecil sebesar 1024 bytes. Namun akan tetap utuh apabila diakses dari filesystem rancangan. File akan dipecah dengan format `[Nama_File].[Ekstensi_File].[Nomor_Partisi]`
+
+### A
+Ketika melakukan perintah membuat direktori, maka akan melakukan checking apakah diawali dengan "RX_" atau tidak pada fungsi `xmp_mkdir()`.
+```c
+static int xmp_mkdir(const char *path, mode_t mode){
+    put_systemlogs("INFO", "MKDIR", path);
+
+    sprintf(log_msg, "[~] Makedir : %s", path); logs();
+    char realpath[SIZE];
+    
+    // Get directory created
+    char path_copy[SIZE]; sprintf(path_copy, "%s", path);
+    char *end_str;
+    char *dirname = strrev(strtok_r(strrev(path_copy), "/", &end_str));
+    sprintf(log_msg, "[~] dirname : %s", dirname); logs();
+
+    // Atoz_DIR
+    char atoz_dir[SIZE]; sprintf(atoz_dir, "%s", dirname);
+    atoz_dir[strlen("AtoZ_")] = 0;
+
+    // RX_DIR
+    char rx_dir[SIZE]; sprintf(rx_dir, "%s", dirname);
+    rx_dir[strlen("RX_")] = 0;
+    ...
+
+    // Check AtoZ    
+    if(!strcmp(atoz_dir, "AtoZ_")){
+        ...
+    }else if(!strcmp(rx_dir, "RX_")){
+        sprintf(realpath, "%s%s", dirpath, path);
+        rx_insert(realpath, ROT13);
+        sprintf(log_msg, "rx dibuat dari mkdir : %s", realpath);
+        put_logs(log_msg);
+    }else if(!strcmp(aisa_dir, "A_is_a_")){
+        ...
+    }else{
+        ...
+    }
+
+    // Check apakah dir yang dibuat didalam folder RX
+    char full_dir[SIZE]; sprintf(full_dir, "%s%s", dirpath, path);
+    if(rx_insubstr(full_dir) >= 0 && !!strcmp(rx_dir, "RX_")){
+        // Lalu encrypt direktory yang akan dibuat
+        int THIS_CHYPER = rx_directory[rx_insubstr(full_dir)].CHIPER;
+        char *encrypted;
+        if(THIS_CHYPER == ROT13){
+            encrypted = chaesarEncrypt(dirname, 13);
+        }else if(THIS_CHYPER == VIGENERE){
+            encrypted = vignereEncrypt(dirname, "SISOP");
+        }
+
+        char *before_dirname = getStrBetween(full_dir, dirpath, dirname);
+        sprintf(realpath, "%s%s%s", dirpath, before_dirname, encrypted);
+    }
+    
+    sprintf(log_msg, "\t\t[~] Final makedir : %s", realpath); logs();
+    int res = mkdir(realpath, mode);
+	if (res == -1) return -errno;
+	return 0;
+}
+```
+
+Kemudian jika terdapat "RX_" pada pathnya maka akan memanggil fungsi `rx_insert()` disertai dengan ROT13 sebagai enkripsi tambahannya. Fungsi rx_insert sendiri sebagai berikut :
+```c
+void rx_insert(char* dir, int chiper){
+    sprintf(rx_directory[rx_last_idx].DIR, "%s", dir);
+    rx_directory[rx_last_idx].CHIPER = chiper;
+    rx_last_idx++;
+}
+```
+Fungsi tersebut akan menyimpan directory dan jenis enkripsi yang akan digunakan pada folder tersebut.
+
+Kemudian apakah direktori yang dibuat ada di dalam folder berawalan "RX_" atau tidak, dengan menggunakan fungsi `rx_insubstr()` sebagai berikut :
+```c
+int rx_insubstr(char *dir){
+    int to_return = -1;
+    for(int i=0; i<rx_last_idx; i++){
+        if(strstr(dir, rx_directory[i].DIR)){
+            to_return = i;
+        }
+    }
+    return to_return;
+}
+```
+Apabila direktori tersebut berada di dalam direktori berawalan "RX_", maka direktori tersebut akan dienkripsi sesuai dengan jenis enkripsinya masing-masing.
+
+Untuk Chaesar Cipher menggunakan fungsi berikut :
+```c
+char *chaesarEncrypt(char* str, int shift){
+    int len = strlen(str);
+    char *ret = malloc((len+1) * sizeof(char));
+
+    for(int i=0; i<len; i++){
+        if(str[i] >= 97 && str[i] <= 122){
+            int asciinum = str[i] - 'a';
+            asciinum = 97 + (asciinum+shift)%26;
+            ret[i] = asciinum;
+        }else if (str[i] >= 65 && str[i] <= 90){
+            int asciinum = str[i] - 'A';
+            asciinum = 65 + (asciinum+shift)%26;
+            ret[i] = asciinum;
+        }else{
+            ret[i] = str[i];
+        }
+    }
+    ret[len] = '\0';
+
+    return ret;
+}
+```
+
+Sedangkan untuk Vignere Chip menggunakan fungsi berikut :
+```c
+char *vignereEncrypt(char *str, char *key) {    
+    char *str_copy = malloc((strlen(str)+1) * sizeof(char));
+    sprintf(str_copy, "%s", str);
+    char temp[SIZE]; sprintf(temp, "%s", str);
+
+    int i = 0, curKey = 0;
+    for(i = 0; i < strlen(str_copy); i++) {
+        if(str_copy[i] >= 'a' && str_copy[i] <= 'z') {
+            str_copy[i] = str_copy[i] - 'a' + 'A';
+        }
+    }
+
+    for(int i = 0; i < strlen(str_copy); i++) {
+        if(curKey == strlen(key)) curKey = 0;
+
+        if(str_copy[i] >= 'A' && str_copy[i] <= 'Z')
+            str_copy[i] = ((str_copy[i] + key[curKey]) % 26);
+            
+        if(temp[i] >= 'a' && temp[i] <= 'z')
+            str_copy[i] += 'a';
+        else if(temp[i] >= 'A' && temp[i] <= 'Z')
+            str_copy[i] += 'A';
+        else
+            curKey--;
+        
+        curKey++;
+    }
+
+    str_copy[strlen(str)] = 0;
+    return str_copy;
+}
+```
+
+### B dan C
+Ketika melakukan perintah merename direktori, maka akan melakukan checking apakah diawali dengan "RX_" atau tidak pada fungsi `xmp_rename()`.
+
+Apabila diawali dengan "RX_" maka direktori tersebut akan merename direktorinya dan mendecrypt secara rekursif semua direktori yang ada di dalamnya terlebih dahulu, kemudian dienkripsi ulang dengan Vignere Cipher.
+```c
+static int xmp_rename(const char *from, const char *to){
+    char temp_log[SIZE]; sprintf(temp_log, "%s::%s", from, to);
+    put_systemlogs("INFO", "RENAME", temp_log);
+
+    sprintf(log_msg, "[~] Rename : %s to %s", from, to); logs();
+
+    char from_copy[SIZE]; sprintf(from_copy, "%s", from);
+    char *end_str; char *dir_from = strrev(strtok_r(strrev(from_copy), "/", &end_str));
+    char from_fulldir[SIZE]; sprintf(from_fulldir, "%s%s", dirpath, from);
+
+    char to_copy[SIZE]; sprintf(to_copy, "%s", to);
+    char *end_str2; char *dir_to = strrev(strtok_r(strrev(to_copy), "/", &end_str2));
+    char to_fulldir[SIZE]; sprintf(to_fulldir, "%s%s", dirpath, to);
+
+    char from_realpath[SIZE];
+    char to_realpath[SIZE];
+    sprintf(from_realpath, "%s%s", dirpath, from);
+    sprintf(to_realpath, "%s%s", dirpath, to);
+
+    ...
+
+    if(strstr(to, "/AtoZ_")){
+        ...
+    }else if(strstr(to, "/RX_")){
+        int last_rx = rx_insubstr(to_realpath);
+        rx_insert(to_realpath, VIGENERE);
+        sprintf(log_msg, "rx dibuat dari rename : %s", to_realpath);
+        put_logs(log_msg);
+
+        // Lalu secara rekursif ganti semua isi foldernya
+        rename(from_realpath, to_realpath);
+
+        if(last_rx >= 0){
+            decryptRecursively(to_realpath, rx_directory[last_rx].CHIPER);
+        }
+
+        encryptRecursively(to_realpath, VIGENERE);
+        return 0;
+    }else if(strstr(to, "/A_is_a_")){
+        a_is_a_insert(to_realpath);
+    }
+
+    sprintf(log_msg, "[~] Fixed Rename : %s to %s", from_realpath, to_realpath); logs();
+    rename(from_realpath, to_realpath);
+
+    // Check apakah dia diganti dari /RX_ ke dir normal
+    char rx_from[SIZE]; sprintf(rx_from, "%s", dir_from);
+    rx_from[strlen("RX_")] = 0;
+
+    char rx_to[SIZE]; sprintf(rx_to, "%s", dir_to);
+    rx_to[strlen("RX_")] = 0;
+
+    if(!strcmp(rx_from, "RX_") && !!strcmp(rx_to, "RX_")){
+        int last_rx = rx_insubstr(from_realpath);
+        if(last_rx >= 0){
+            decryptRecursively(to_realpath, rx_directory[last_rx].CHIPER);
+            strcpy(rx_directory[last_rx].DIR, "xxx..............xxx");
+        }
+    }
+    ...
+
+	return 0;
+}
+```
+Kemudian mengecek apakah merename dari direktori berawalan "RX_" menjadi normal atau tidak. Jika ya, maka decrypt direktori tersebut dan seluruh isinya secara rekursif.
+
+Untuk fungsi decrypt secara rekursif sebagaia berikut :
+```c
+void decryptRecursively(char *path, int CHIPER){
+    sprintf(log_msg, "[~] decryptRecursively path : %s", path); logs();
+    DIR *dir;
+    struct dirent *entry;
+
+    if (!(dir = opendir(path)))
+        return;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+            char from_rename[SIZE]; sprintf(from_rename, "%s/%s", path, entry->d_name);
+            
+            char *decrypted;
+            if(CHIPER == ROT13){
+                decrypted = chaesarEncrypt(entry->d_name, 13);
+            }else if(CHIPER == VIGENERE){
+                decrypted = vignereDecrypt(entry->d_name, "SISOP");
+            }
+
+            char to_rename[SIZE]; sprintf(to_rename, "%s/%s", path, decrypted);
+
+            rename(from_rename, to_rename);
+            sprintf(log_msg, "\t[~] decrypt, rename : %s to %s", from_rename, to_rename); logs();
+
+            char next_path[SIZE];
+            sprintf(next_path, "%s/%s", path, decrypted);
+            decryptRecursively(next_path, CHIPER);
+        } else {
+            // This is file
+            char from_rename[SIZE]; sprintf(from_rename, "%s/%s", path, entry->d_name);
+            char to_rename[SIZE];
+            char *decrypted;
+
+            char *dir_ext = get_filename_ext(entry->d_name);
+            if(strlen(dir_ext) > 0){
+                char to_decrypt[SIZE]; sprintf(to_decrypt, "%s", entry->d_name);
+                to_decrypt[strlen(to_decrypt) - strlen(dir_ext) -1] = 0;
+
+                if(CHIPER == ROT13){
+                    decrypted = chaesarEncrypt(to_decrypt, 13);
+                }else if(CHIPER == VIGENERE){
+                    decrypted = vignereDecrypt(to_decrypt, "SISOP");
+                }
+                sprintf(to_rename, "%s/%s.%s", path, decrypted, dir_ext);
+            }else{
+                if(CHIPER == ROT13){
+                    decrypted = chaesarEncrypt(entry->d_name, 13);
+                }else if(CHIPER == VIGENERE){
+                    decrypted = vignereEncrypt(entry->d_name, "SISOP");
+                }
+                sprintf(to_rename, "%s/%s", path, decrypted);
+            }
+
+            rename(from_rename, to_rename);
+            sprintf(log_msg, "\t[~] decrypt, rename : %s to %s", from_rename, to_rename); logs();
+        }
+    }
+    closedir(dir);
+}
+```
+
+### D
+Untuk melakukan logging, di `mkdir` ataupun `rename` maka akan memanggil fungsi `put_systemlogs()` dengan method `mkdir` atau `rename`.
+
+### E
+Untuk bagian soal ini, karena menurut kami penjelasannya ambigu dan sulit dipahami, maka kami memutuskan untuk tidak mengerjakannya. Karena di soal disebutkan jika file/folder yang memenuhi syarat seperti di bagian soal sebelumnya, akan dienkripsi sedangkan pada penjelasan soal ini tidak.
+
+## Soal 3
+## Soal 4
+
+## Kesulitan
+Kesulitan yang kami temui pada praktikum kali ini adalah masih banyaknya soal yang susah untuk dipahami dan kontradiksi dengan soal lainnya. Sehingga dalam pengerjaannya kami kesulitan.

@@ -803,7 +803,7 @@ static int xmp_mkdir(const char *path, mode_t mode){
     char atoz_dir[SIZE]; sprintf(atoz_dir, "%s", dirname);
     atoz_dir[strlen("AtoZ_")] = 0;
 
-    // Atoz_DIR
+    // RX_DIR
     char rx_dir[SIZE]; sprintf(rx_dir, "%s", dirname);
     rx_dir[strlen("RX_")] = 0;
 
