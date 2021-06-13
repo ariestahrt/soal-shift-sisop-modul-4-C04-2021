@@ -601,19 +601,19 @@ Untuk melakukan logging, di `mkdir` ataupun `rename` maka akan memanggil fungsi 
 Untuk bagian soal ini, karena menurut kami penjelasannya ambigu dan sulit dipahami, maka kami memutuskan untuk tidak mengerjakannya. Karena di soal disebutkan jika file/folder yang memenuhi syarat seperti di bagian soal sebelumnya, akan dienkripsi sedangkan pada penjelasan soal ini tidak.
 
 ## Soal 3
-## Soal 4
 
+## Soal 4
 Pada soal no.4 ini kita diminta untuk membuat sebuah log system dengan spesifikasi sebagai berikut.
 * Log system yang akan terbentuk bernama “SinSeiFS.log" pada direktori home pengguna (/home/[user]/SinSeiFS.log). Log system ini akan menyimpan daftar perintah system call yang telah dijalankan pada filesystem
 * Log yang dibuat akan dibagi menjadi dua level, yaitu INFO dan WARNING.
 * Untuk log level WARNING, digunakan untuk mencatat syscall rmdir dan unlink.
 * Sisanya, akan dicatat pada level INFO.
 * Format untuk logging yaitu: 
-    [Level]::[dd][mm][yyyy]-[HH]:[MM]:[SS]:[CMD]::[DESC :: DESC]
-    Level : Level logging, dd : 2 digit tanggal, mm : 2 digit bulan, yyyy : 4 digit tahun, HH : 2 digit jam (format 24 Jam),MM : 2 digit menit, SS : 2 digit detik, CMD : System Call yang terpanggil, DESC : informasi dan parameter tambahan
-    contoh: 
-    INFO::28052021-10:00:00:CREATE::/test.txt
-    INFO::28052021-10:01:00:RENAME::/test.txt::/rename.txt
+- [Level]::[dd][mm][yyyy]-[HH]:[MM]:[SS]:[CMD]::[DESC :: DESC]
+- Level : Level logging, dd : 2 digit tanggal, mm : 2 digit bulan, yyyy : 4 digit tahun, HH : 2 digit jam (format 24 Jam),MM : 2 digit menit, SS : 2 digit detik, CMD : System Call yang terpanggil, DESC : informasi dan parameter tambahan
+- INFO::28052021-10:00:00:CREATE::/test.txt
+- INFO::28052021-10:01:00:RENAME::/test.txt::/rename.txt
+
 ```c
 void put_systemlogs(char* level, char *command, char *desc){
     time (&my_time);
