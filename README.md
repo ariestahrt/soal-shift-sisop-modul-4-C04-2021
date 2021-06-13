@@ -603,5 +603,68 @@ Untuk bagian soal ini, karena menurut kami penjelasannya ambigu dan sulit dipaha
 ## Soal 3
 ## Soal 4
 
+Pada soal no.4 ini kita diminta untuk membuat sebuah log system dengan spesifikasi sebagai berikut.
+* Log system yang akan terbentuk bernama “SinSeiFS.log" pada direktori home pengguna (/home/[user]/SinSeiFS.log). Log system ini akan menyimpan daftar perintah system call yang telah dijalankan pada filesystem
+* Log yang dibuat akan dibagi menjadi dua level, yaitu INFO dan WARNING.
+* Untuk log level WARNING, digunakan untuk mencatat syscall rmdir dan unlink.
+* Sisanya, akan dicatat pada level INFO.
+* Format untuk logging yaitu: 
+    [Level]::[dd][mm][yyyy]-[HH]:[MM]:[SS]:[CMD]::[DESC :: DESC]
+    Level : Level logging, dd : 2 digit tanggal, mm : 2 digit bulan, yyyy : 4 digit tahun, HH : 2 digit jam (format 24 Jam),MM : 2 digit menit, SS : 2 digit detik, CMD : System Call yang terpanggil, DESC : informasi dan parameter tambahan
+    contoh: 
+    INFO::28052021-10:00:00:CREATE::/test.txt
+    INFO::28052021-10:01:00:RENAME::/test.txt::/rename.txt
+```c
+void put_systemlogs(char* level, char *command, char *desc){
+    time (&my_time);
+	timeinfo = localtime (&my_time);
+
+	char day[10], month[10], year[10], hour[10], minute[10], second[10];
+
+	sprintf(day, "%d", timeinfo->tm_mday);
+	if(timeinfo->tm_mday < 10) sprintf(day, "0%d", timeinfo->tm_mday);
+
+	sprintf(month, "%d", timeinfo->tm_mon+1);
+	if(timeinfo->tm_mon+1 < 10) sprintf(month, "0%d", timeinfo->tm_mon+1);
+
+	sprintf(year, "%d", timeinfo->tm_year+1900);
+
+	sprintf(hour, "%d", timeinfo->tm_hour);
+	if(timeinfo->tm_hour < 10) sprintf(hour, "0%d", timeinfo->tm_hour);
+
+	sprintf(minute, "%d", timeinfo->tm_min);
+	if(timeinfo->tm_min < 10) sprintf(minute, "0%d", timeinfo->tm_min);
+
+	sprintf(second, "%d", timeinfo->tm_sec);
+	if(timeinfo->tm_sec < 10) sprintf(second, "0%d", timeinfo->tm_sec);
+
+    char content[SIZE];
+    sprintf(content, "%s::%s%s%s-%s:%s:%s:%s::%s", level, day, month, year, hour, minute, second, command, desc);
+
+    FILE* fptr_logs = fopen(logpath, "a");
+    fprintf(fptr_logs, "%s\r\n", content);
+    fclose(fptr_logs);
+}
+```
+Kami membuat fungsi `put_systemlogs()` untuk mendapatkan format tanggal, bulan, tahun, jam, menit, detik yang diminta pada soal. Untuk log level WARNING (mencatat syscall rmdir dan unlink) pemanggilan fungsinya sebagai berikut: 
+```c
+// untuk rmdir
+put_systemlogs("WARNING", "RMDIR", path);
+// untuk unlink
+put_systemlogs("WARNING", "UNLINK", path);
+``` 
+sedangkan untuk log level INFO (mencatat syscall selain rmdir dan unlink) pemanggilan fungsinya sebagai berikut:  
+```c
+// untuk syscall selain rmdir dan unlink
+put_systemlogs("INFO", "GETATTR", path);
+put_systemlogs("INFO", "READDIR", path);
+put_systemlogs("INFO", "READ", path);
+put_systemlogs("INFO", "MKDIR", path);
+put_systemlogs("INFO", "RENAME", temp_log);
+put_systemlogs("INFO", "WRITE", path);
+put_systemlogs("INFO", "STATFS", path);
+put_systemlogs("INFO", "CREATE", path);
+```
+
 ## Kesulitan
 Kesulitan yang kami temui pada praktikum kali ini adalah masih banyaknya soal yang susah untuk dipahami dan kontradiksi dengan soal lainnya. Sehingga dalam pengerjaannya kami kesulitan.
